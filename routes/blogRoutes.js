@@ -1,17 +1,29 @@
 const express = require('express');
 const blogController = require('../controllers/blogController');
+const authController = require('../controllers/authController');
+const { USER_ROLES } = require('../utils/usersRoles');
 
 const router = express.Router();
 
 router.route('/')
   .get(blogController.getAllBlogs)
-  // for admin and doctor only
-  .post(blogController.addBlog);
+  .post(
+    authController.protect, 
+    authController.restrictTo(USER_ROLES.ADMIN, USER_ROLES.DOCTOR), 
+    blogController.addBlog
+  );
 
 router.route('/:id')
   .get(blogController.getBlog)
-  // for admin and doctor only
-  .patch(blogController.updateBlog)
-  .delete(blogController.deleteBlog);
+  .patch(
+    authController.protect, 
+    authController.restrictTo(USER_ROLES.ADMIN, USER_ROLES.DOCTOR), 
+    blogController.updateBlog
+  )
+  .delete(
+    authController.protect, 
+    authController.restrictTo(USER_ROLES.ADMIN, USER_ROLES.DOCTOR), 
+    blogController.deleteBlog
+  );
 
 module.exports = router;

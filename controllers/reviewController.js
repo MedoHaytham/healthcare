@@ -10,14 +10,14 @@ const AppError = require('../utils/appError');
 // ----------------------------------------------------------------
 exports.setMedicineAndUserIds = (req, res, next) => {
   if (!req.body.medicine) req.body.medicine = req.params.medicineId;
-  req.body.user = req.currentUser._id;
+  req.body.user = req.user._id;
   next();
 };
 
 // ----------------------------------------------------------------
 // Get all reviews (supports nested route: /medicines/:medicineId/reviews)
 // ----------------------------------------------------------------
-exports.getAllReviews = handlerFactory.getAll(Review);
+exports.getAllReviews = handlerFactory.getAll(Review, ['comment']);
 
 // Get a single review
 exports.getReview = handlerFactory.getOne(Review);
@@ -36,7 +36,7 @@ exports.updateReview = asyncWrapper(async (req, res, next) => {
     return next(new AppError('No review found with that ID', 404));
   }
 
-  if (review.user.toString() !== req.currentUser._id.toString()) {
+  if (review.user.toString() !== req.user._id.toString()) {
     return next(new AppError('You are not allowed to edit this review', 403));
   }
 
@@ -60,7 +60,7 @@ exports.deleteReview = asyncWrapper(async (req, res, next) => {
     return next(new AppError('No review found with that ID', 404));
   }
 
-  const { _id, role } = req.currentUser;
+  const { _id, role } = req.user;
   const isOwner = review.user.toString() === _id.toString();
 
   if (!isOwner && role !== 'admin') {
@@ -79,7 +79,7 @@ exports.deleteReview = asyncWrapper(async (req, res, next) => {
 // Get my own reviews
 // ----------------------------------------------------------------
 exports.getMyReviews = asyncWrapper(async (req, res, next) => {
-  const { _id } = req.currentUser;
+  const { _id } = req.user;
 
   const reviews = await Review.find({ user: _id }).populate('medicine', 'name');
 

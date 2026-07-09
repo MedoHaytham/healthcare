@@ -4,37 +4,15 @@ const LabTest = require('../models/LabTest');
 const httpStatus = require('../utils/httpStatusText');
 const handlerFactory = require('./handlerFactory');
 const AppError = require('../utils/appError');
-const APIfeatures = require('../utils/apiFeatures');
 
-// ----------------------------------------------------------------
-// Admin: list all bookings (filter by status, date range via ?date[gte]=)
-// ----------------------------------------------------------------
-exports.getAllBookings = asyncWrapper(async (req, res, next) => {
-  const features = new APIfeatures(LabBooking.find(), req.query)
-    .filter()
-    .sort()
-    .limitFields();
-
-  const total = await LabBooking.countDocuments(features.query.getFilter());
-
-  features.paginate();
-  const doc = await features.query;
-
-  res.status(200).json({
-    status: httpStatus.SUCCESS,
-    total,
-    results: doc.length,
-    data: { data: doc },
-  });
-});
-
+exports.getAllBookings = handlerFactory.getAll(LabBooking);
 exports.getBooking = handlerFactory.getOne(LabBooking);
 
 // ----------------------------------------------------------------
 // User: get my own bookings
 // ----------------------------------------------------------------
 exports.getMyBookings = asyncWrapper(async (req, res, next) => {
-  const { _id } = req.currentUser;
+  const { _id } = req.user;
 
   const bookings = await LabBooking.find({ user: _id }).sort('-date');
 
@@ -50,7 +28,7 @@ exports.getMyBookings = asyncWrapper(async (req, res, next) => {
 // ----------------------------------------------------------------
 exports.createBooking = asyncWrapper(async (req, res, next) => {
   const { labTestId, date } = req.body;
-  const { _id } = req.currentUser;
+  const { _id } = req.user;
 
   const labTest = await LabTest.findById(labTestId);
   if (!labTest) {
@@ -79,36 +57,6 @@ exports.createBooking = asyncWrapper(async (req, res, next) => {
 });
 
 // ----------------------------------------------------------------
-// Cancel booking — only the owner can cancel their own pending booking
-// ----------------------------------------------------------------
-exports.cancelBooking = asyncWrapper(async (req, res, next) => {
-  const booking = await LabBooking.findById(req.params.id);
-
-  if (!booking) {
-    return next(new AppError('No booking found with that ID', 404));
-  }
-
-  const { _id, role } = req.currentUser;
-  const isOwner = booking.user.toString() === _id.toString();
-
-  if (!isOwner && role !== 'admin') {
-    return next(new AppError('You are not allowed to cancel this booking', 403));
-  }
-
-  if (booking.status !== 'booked') {
-    return next(new AppError(`This booking is already ${booking.status}`, 400));
-  }
-
-  booking.status = 'cancelled';
-  await booking.save();
-
-  res.status(200).json({
-    status: httpStatus.SUCCESS,
-    data: { data: booking },
-  });
-});
-
-// ----------------------------------------------------------------
 // Admin: update booking status (e.g. mark as completed)
 // ----------------------------------------------------------------
 exports.updateBookingStatus = asyncWrapper(async (req, res, next) => {
@@ -123,6 +71,36 @@ exports.updateBookingStatus = asyncWrapper(async (req, res, next) => {
   if (!booking) {
     return next(new AppError('No booking found with that ID', 404));
   }
+
+  res.status(200).json({
+    status: httpStatus.SUCCESS,
+    data: { data: booking },
+  });
+});
+
+// ----------------------------------------------------------------
+// Cancel booking — only the owner can cancel their own pending booking
+// ----------------------------------------------------------------
+exports.cancelBooking = asyncWrapper(async (req, res, next) => {
+  const booking = await LabBooking.findById(req.params.id);
+
+  if (!booking) {
+    return next(new AppError('No booking found with that ID', 404));
+  }
+
+  const { _id, role } = req.user;
+  const isOwner = booking.user.toString() === _id.toString();
+
+  if (!isOwner && role !== 'admin') {
+    return next(new AppError('You are not allowed to cancel this booking', 403));
+  }
+
+  if (booking.status !== 'booked') {
+    return next(new AppError(`This booking is already ${booking.status}`, 400));
+  }
+
+  booking.status = 'cancelled';
+  await booking.save();
 
   res.status(200).json({
     status: httpStatus.SUCCESS,

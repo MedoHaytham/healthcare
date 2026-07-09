@@ -1,6 +1,8 @@
 // routes/contactRoutes.js
 const express = require('express');
 const contactController = require('../controllers/contactController');
+const authController = require('../controllers/authController');
+const { USER_ROLES } = require('../utils/usersRoles');
 
 const router = express.Router();
 
@@ -8,7 +10,7 @@ const router = express.Router();
 router.post('/', contactController.submitContactForm);
 
 // Admin only — manage submitted messages
-// router.use(authController.protect, authController.restrictTo('admin'));
+router.use(authController.protect, authController.restrictTo(USER_ROLES.ADMIN));
 
 router.get('/', contactController.getAllMessages);
 router

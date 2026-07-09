@@ -129,7 +129,7 @@ exports.getOrderStats = asyncWrapper(async (req, res, next) => {
 // User: get my own orders
 // ----------------------------------------------------------------
 exports.getMyOrders = asyncWrapper(async (req, res, next) => {
-  const { _id } = req.currentUser;
+  const { _id } = req.user;
 
   const orders = await Order.find({ user: _id })
     .populate('items.medicineId', 'name image')
@@ -148,7 +148,7 @@ exports.getMyOrders = asyncWrapper(async (req, res, next) => {
 // ----------------------------------------------------------------
 exports.createOrder = asyncWrapper(async (req, res, next) => {
   const { items, billingInfo, paymentMethod } = req.body;
-  const { _id } = req.currentUser;
+  const { _id } = req.user;
 
   const { orderItems, totalPrice } = await buildOrderItems(items);
 
@@ -158,7 +158,7 @@ exports.createOrder = asyncWrapper(async (req, res, next) => {
     totalPrice,
     billingInfo,
     paymentMethod,
-    status: 'pending',
+    status: paymentMethod === 'cod' ? 'paid' : 'pending',
   });
 
   await decrementStock(orderItems);
